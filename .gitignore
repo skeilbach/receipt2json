@@ -1,0 +1,6 @@
+# Ignore all downloaded weight files
+*.pt
+
+# Ignore roboflow dataset
+datasets/
+runs/
