@@ -4,3 +4,6 @@
 # Ignore roboflow dataset
 datasets/
 runs/
+
+# Ignore jupyter checkpoints
+**/*.ipynb_checkpoints/
