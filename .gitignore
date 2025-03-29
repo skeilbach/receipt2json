@@ -1,9 +1,13 @@
 # Ignore all downloaded weight files
 *.pt
 
-# Ignore roboflow dataset
+# Ignore roboflow dataset and other data
 datasets/
 runs/
+custom_data/
 
 # Ignore jupyter checkpoints
 **/*.ipynb_checkpoints/
+
+# Ignore file containing api keys
+.env
