@@ -1,0 +1,17 @@
+# This is the configuration file for the Custom Receipt Scanner. 
+# It contains all standard definitions of variables for all methods
+
+# Variables for cv2.GaussianBlur(src, dst, ksize, sigmaX, sigmaY=0)
+sigmaX: 11
+sigmaY: 11
+
+# cv2.Canny(image, edges, threshold1, threshold2, apertureSize=3, L2gradient=False)
+threshold1: 100
+threshold2: 200
+
+# sklearn.cluster.estimate_bandwidth
+quantile: 0.1
+
+# Sauvola threshold
+window_size: 55
+k: 0.1
