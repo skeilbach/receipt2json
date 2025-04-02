@@ -3,6 +3,9 @@ from sklearn.cluster import KMeans
 import numpy as np
 import yaml
 import cv2
+from pathlib import Path
+from ultralytics import YOLO
+import torch
 # Define helper functions for the main classes
 
 
@@ -124,6 +127,7 @@ def get_corners_cluster(rect, corners):
     
     # Group clusters together to compute combinations
     clusters = [cluster_tl, cluster_tr, cluster_br, cluster_bl]
+    print(clusters)
 
     return clusters
 
@@ -200,4 +204,46 @@ def contour_to_rect(contour):
     rect[1] = pts[np.argmin(diff)]
     rect[3] = pts[np.argmax(diff)]
     return rect
+
+def load_yolo_model(weights_path):
+    """
+    Loads a YOLO model based on the available hardware and format of the weights.
     
+    - If the weights are PyTorch-based and a GPU is available, it loads a PyTorch model.
+    - Otherwise, it converts the model to ONNX and loads it using ONNX Runtime for CPU acceleration.
+
+    Args:
+        - weights_path (str): Path to the YOLO weights file (.pt for PyTorch, .onnx for ONNX)
+        
+    Returns:
+        - Loaded model (PyTorch or ONNX session)
+    """
+    
+    def is_pytorch_model(path):
+        """Check if the file is a PyTorch model"""
+        return weights_path.endswith(".pt")
+
+    def convert_to_onnx(pt_path, onnx_path="yolo_receipt_seg.onnx"):
+        """Converts a PyTorch YOLO model to ONNX format."""
+        model = YOLO(pt_path)
+        model.export(format="onnx")  # Convert to ONNX
+        del model
+        return onnx_path
+
+    if is_pytorch_model(weights_path):
+        if torch.cuda.is_available():
+            print("Loading PyTorch YOLO model on GPU...")
+            return YOLO(weights_path).to("cuda"), "pt"   # Load YOLO model on GPU
+        else:
+            print("No GPU available, converting to ONNX for CPU acceleration...")
+            weight_path = Path(weight_path)
+            onnx_path = convert_to_onnx(weights_path, onnx_path=weights_path.with_suffix("onnx"))
+            weights_path = onnx_path  # Update path to ONNX model
+
+    if weights_path.endswith(".onnx"):
+        print("Loading ONNX YOLO model inference...")
+        return YOLO(weights_path), "onnx"
+
+    raise ValueError("Invalid model format: Only .pt (PyTorch) and .onnx (ONNX) are supported.")
+
+

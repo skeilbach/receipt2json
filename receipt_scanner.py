@@ -40,8 +40,8 @@ class CustomReceiptScanner(BaseReceiptScanner):
             - config_path (str): Path to the config file containing important variables for the methods, e.g. thresholds
             - model_path (str): Path to the trained YOLO weights
         """
-        # Load model
-        self.model = YOLO(model_path)
+        # Load onnx model if only cpu is available to accelerated inference on CPUs
+        self.model, self.model_type = utils.load_yolo_model(model_path)           
 
         # Load config file
         if config_path:
@@ -60,11 +60,6 @@ class CustomReceiptScanner(BaseReceiptScanner):
         self.threshold1, self.threshold2 = config.get("threshold1"), config.get("threshold2")  # for cv2.Canny
         self.quantile = config.get("quantile")  # for cluster.estimate_bandwidth
         self.window_size, self.k = config.get("window_size"), config.get("k")  # for Sauvola threshold
-        
-        self.mask = None
-        self.mask_extended = None
-        self.img = None
-        self.gray = None
 
     def segment_receipt(self, img_path):
         """
@@ -77,7 +72,10 @@ class CustomReceiptScanner(BaseReceiptScanner):
         Returns:
             tuple (np.ndarray, np.ndarray): segmentation mask of receipt in original size and on extended background
         """
-        result = self.model.predict(source=img_path, imgsz=640)
+        if self.model_type=="pt":
+            result = self.model.predict(source=img_path, imgsz=640)
+        else:
+            result = self.model(source=img_path, imgsz=640)  # different call argument for onnx model
         mask = result[0].masks.data[0].cpu().numpy().astype(np.uint8)*255
         mask_extended = utils.extend_segmentation_mask(mask)
 
@@ -128,7 +126,7 @@ class CustomReceiptScanner(BaseReceiptScanner):
         # Fit lines to the edges of the convex hull
         height, width = mask_extended.shape
         convex_hull_filled = cv2.fillPoly(np.zeros((height, width), dtype= np.uint8), pts= [convex_hull], color = 255)
-        blurred = cv2.GaussianBlur(mask_extended, (self.sigmaX, self.sigmaY), 0)
+        blurred = cv2.GaussianBlur(convex_hull_filled, (self.sigmaX, self.sigmaY), 0)
         edge = cv2.Canny(blurred, self.threshold1, self.threshold2)
         lines = np.array(transform.probabilistic_hough_line(edge))  # Use probabilistic Hough Lines
         angles = np.array([np.abs(np.atan2(a[1]-b[1], a[0]-b[0]) - np.pi/2) for a,b in lines])  # Determine angles of lines
@@ -139,7 +137,7 @@ class CustomReceiptScanner(BaseReceiptScanner):
 
         # Get all intersections of fitted hough lines and cluster them to reduce the amount of points
         intersections = np.array([utils.intersection(utils.line(vl[0],vl[1]), utils.line(hl[0], hl[1])) for vl in verticalLines for hl in horizontalLines])
-
+        
         bw = cluster.estimate_bandwidth(intersections, quantile=self.quantile)
         corners = cluster.MeanShift(bandwidth=bw).fit(intersections).cluster_centers_
         rect = utils.contour_to_rect(corners)[:4]
@@ -161,6 +159,9 @@ class CustomReceiptScanner(BaseReceiptScanner):
         Parameters:
          - corner_combinations (list[tuple]): List of tuples containing corner candidates
          - mask (np.ndarray): The 2D array of the segmentation mask of the receipt
+
+         Returns:
+             - corners (np.ndarray): Array containing the corners of the receipt in the original image
         """
         iou_tmp = 0
         best_candidate = None  
@@ -171,13 +172,17 @@ class CustomReceiptScanner(BaseReceiptScanner):
             if iou_comb > iou_tmp:
                 best_candidate = comb
                 iou_tmp = iou_comb  # Update best IoU value
-    
-        crns = np.array(best_candidate)
-        crns = utils.transform_corners(crns, mask_extended.shape, mask.shape)  # Resize corners to fit original masks dimensions
 
-        # Resize corners to match original dimensions of the image
+        # Compute mask dimensions which keep the aspect ratio of the image, e.g. the onnx model always returns masks of shape (640,640) which does not keep
+        # the aspect ratio of the original image. Therefore We need to account for this now 
         img_height, img_width, img_channels = img.shape
-        corners = utils.resize_rectangle(crns, mask.shape, (img_height, img_width))
+        mask_height, mask_width = mask.shape
+        mask_width_corrected = int((img_width / img_height) * mask_height)
+
+        crns = np.array(best_candidate)
+        crns = utils.transform_corners(crns, mask_extended.shape, (mask_height, mask_width_corrected))  # Resize corners to fit original masks dimensions
+        # Resize corners to match original dimensions of the image (also use the corrected mask width here!)
+        corners = utils.resize_rectangle(crns, (mask_height, mask_width_corrected), (img_height, img_width))
 
         return corners
 
@@ -295,6 +300,8 @@ class CustomReceiptScanner(BaseReceiptScanner):
         
         return {
             'original': img,
+            'mask': mask,
+            'mask_extended': mask_extended,
             'warped': warped,
             'enhanced': enhanced,
             'corners': receipt_corners
