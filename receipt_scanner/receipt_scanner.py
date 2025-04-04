@@ -9,9 +9,10 @@ from scipy.fftpack import dct, idct
 from sklearn import cluster
 from skimage import morphology, filters, transform
 from skimage.segmentation import clear_border
-import utils
+from . import utils
 import itertools
 import cv2
+import math
 
 
 
@@ -96,10 +97,9 @@ class CustomReceiptScanner(BaseReceiptScanner):
         
         blurred = cv2.GaussianBlur(mask_extended, (self.sigmaX, self.sigmaY), 0)
         edge = cv2.Canny(blurred, self.threshold1, self.threshold2)
-        dilated = cv2.dilate(edge, kernel=morphology.disk(1))
 
         # Find contours
-        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(edge, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         # Get largest contour (assume that this will be the receipt)
         largest_contour = sorted(contours, key = cv2.contourArea, reverse = True)[0]
@@ -124,12 +124,11 @@ class CustomReceiptScanner(BaseReceiptScanner):
         """
 
         # Fit lines to the edges of the convex hull
-        height, width = mask_extended.shape
-        convex_hull_filled = cv2.fillPoly(np.zeros((height, width), dtype= np.uint8), pts= [convex_hull], color = 255)
+        convex_hull_filled = cv2.fillPoly(np.zeros(mask_extended.shape, dtype=np.uint8), pts=[convex_hull], color=255)
         blurred = cv2.GaussianBlur(convex_hull_filled, (self.sigmaX, self.sigmaY), 0)
         edge = cv2.Canny(blurred, self.threshold1, self.threshold2)
-        lines = np.array(transform.probabilistic_hough_line(edge))  # Use probabilistic Hough Lines
-        angles = np.array([np.abs(np.atan2(a[1]-b[1], a[0]-b[0]) - np.pi/2) for a,b in lines])  # Determine angles of lines
+        lines = np.array(transform.probabilistic_hough_line(edge, rng=42))  # Use probabilistic Hough Lines
+        angles = np.array([np.abs(math.atan2(a[1]-b[1], a[0]-b[0]) - np.pi/2) for a,b in lines])  # Determine angles of lines
 
         # Categorise lines into vertical and horizontal lines by their angles
         verticalLines = lines[angles < np.pi/4] 
@@ -139,6 +138,12 @@ class CustomReceiptScanner(BaseReceiptScanner):
         intersections = np.array([utils.intersection(utils.line(vl[0],vl[1]), utils.line(hl[0], hl[1])) for vl in verticalLines for hl in horizontalLines])
         
         bw = cluster.estimate_bandwidth(intersections, quantile=self.quantile)
+
+        if bw==0:
+            bw += 1e-5
+        else:
+            pass
+            
         corners = cluster.MeanShift(bandwidth=bw).fit(intersections).cluster_centers_
         rect = utils.contour_to_rect(corners)[:4]
 
@@ -149,7 +154,7 @@ class CustomReceiptScanner(BaseReceiptScanner):
         # Get all possible valid combinations of corners
         valid_corner_combinations = list(itertools.product(*clusters))
 
-        return valid_corner_combinations
+        return valid_corner_combinations, clusters
 
     def _get_corners(self, corner_combinations, mask, mask_extended, img):
         """
@@ -167,7 +172,7 @@ class CustomReceiptScanner(BaseReceiptScanner):
         best_candidate = None  
         
         for comb in corner_combinations:
-            iou_comb = utils.IoU(mask, np.array(comb))
+            iou_comb = utils.IoU(mask_extended, np.array(comb))
             
             if iou_comb > iou_tmp:
                 best_candidate = comb
@@ -184,7 +189,7 @@ class CustomReceiptScanner(BaseReceiptScanner):
         # Resize corners to match original dimensions of the image (also use the corrected mask width here!)
         corners = utils.resize_rectangle(crns, (mask_height, mask_width_corrected), (img_height, img_width))
 
-        return corners
+        return corners, best_candidate
 
     def _warp_perspective(self, img, rect):
         # Unpack the rect points (in the order: tl, tr, br, bl)
@@ -245,7 +250,6 @@ class CustomReceiptScanner(BaseReceiptScanner):
         receipt[receipt<245] = 0   
 
         return receipt
-
         
     def _normalize_global_illumination(self, gray):
         """
@@ -265,7 +269,7 @@ class CustomReceiptScanner(BaseReceiptScanner):
          
         gray = (gray - gray.min()) / (gray.max() - gray.min()) # renormalize to range [0:1]
 
-        return gray
+        return (gray*255).astype(np.uint8)
 
     def process_receipt(self, img_path):
         """
@@ -279,18 +283,22 @@ class CustomReceiptScanner(BaseReceiptScanner):
         img = cv2.imread(img_path)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
+        # Normalize global illumination
+        gray = self._normalize_global_illumination(gray)  
+        
         # Segment receipt
         mask, mask_extended = self.segment_receipt(img_path)
         
         # Get corners
         convex_hull = self._find_contours(mask_extended)
-        corner_combinations = self._get_corner_combinations(convex_hull, mask_extended)
-        receipt_corners = self._get_corners(corner_combinations, mask, mask_extended, img)
-
-        
+        corner_combinations, clusters = self._get_corner_combinations(convex_hull, mask_extended)
+        receipt_corners, best_candidate = self._get_corners(corner_combinations, mask, mask_extended, img)       
         
         if receipt_corners is None:
             raise ValueError("No receipt detected in image")
+
+        # Print detected receipt
+        
             
         # Transform perspective
         warped = self._warp_perspective(gray, receipt_corners)
@@ -301,8 +309,8 @@ class CustomReceiptScanner(BaseReceiptScanner):
         return {
             'original': img,
             'mask': mask,
-            'mask_extended': mask_extended,
             'warped': warped,
+            'best_candidate': best_candidate,
             'enhanced': enhanced,
             'corners': receipt_corners
         }

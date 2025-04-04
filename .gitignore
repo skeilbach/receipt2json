@@ -11,3 +11,6 @@ custom_data/
 
 # Ignore file containing api keys
 .env
+
+# Ignore all __pycache__ folders in any subdirectory
+__pycache__/

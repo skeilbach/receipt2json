@@ -127,7 +127,6 @@ def get_corners_cluster(rect, corners):
     
     # Group clusters together to compute combinations
     clusters = [cluster_tl, cluster_tr, cluster_br, cluster_bl]
-    print(clusters)
 
     return clusters
 
@@ -232,16 +231,16 @@ def load_yolo_model(weights_path):
 
     if is_pytorch_model(weights_path):
         if torch.cuda.is_available():
-            print("Loading PyTorch YOLO model on GPU...")
+            print("[INFO] Loading PyTorch YOLO model on GPU...")
             return YOLO(weights_path).to("cuda"), "pt"   # Load YOLO model on GPU
         else:
-            print("No GPU available, converting to ONNX for CPU acceleration...")
+            print("[INFO] No GPU available, converting to ONNX for CPU acceleration...")
             weight_path = Path(weight_path)
             onnx_path = convert_to_onnx(weights_path, onnx_path=weights_path.with_suffix("onnx"))
             weights_path = onnx_path  # Update path to ONNX model
 
     if weights_path.endswith(".onnx"):
-        print("Loading ONNX YOLO model inference...")
+        print("[INFO] Loading ONNX YOLO model inference...")
         return YOLO(weights_path), "onnx"
 
     raise ValueError("Invalid model format: Only .pt (PyTorch) and .onnx (ONNX) are supported.")
