@@ -43,7 +43,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip uv # Install/upgrade pip and install uv
           # Install dependencies from pyproject.toml using uv
-          uv pip install ".[format]"
+          uv pip install --system ".[format]"
 
       # Run formatting and linting tools
       - name: Check import sorting with isort
