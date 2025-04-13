@@ -5,6 +5,7 @@
 datasets/
 runs/
 custom_data/
+**/*.egg-info/ 
 
 # Ignore jupyter checkpoints
 **/*.ipynb_checkpoints/

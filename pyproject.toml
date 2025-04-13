@@ -1,0 +1,30 @@
+[project]
+name = "receipt2json"
+version = "0.1.0"
+description = "This project aims to leverage deep-learning to extract text from supermarket receipts and convert them to json format."
+requires-python = ">=3.10,<3.11"
+authors = [
+        {name = "Simon Keilbach", email = "s.keilbach51@gmail.com"}
+    ]
+dependencies = [
+    "opencv-python-headless==4.10.0.84",
+    "roboflow==1.1.58",
+    "scikit-image==0.25.2",
+    "scikit-learn==1.6.1",
+    "scipy==1.15.2",
+    "torch==2.6.0",
+    "torchvision==0.21.0",
+    "ultralytics==8.3.98",
+    "tqdm",
+    "imutils",
+    "numpy==1.26.4",
+    "progressbar"  
+    ]
+
+[project.optional-dependencies]
+format = [
+    "black>=23.0,<25.0",    
+    "flake8>=6.0,<8.0",
+    "isort>=5.10,<6.0",
+    "uv>=0.1.18",         
+]
