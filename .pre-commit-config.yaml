@@ -1,0 +1,38 @@
+repos:
+  # === Import Sorting (Check Only) ===
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2 # Use a recent, specific version
+    hooks:
+      - id: isort
+        name: isort (check only)
+        # --check-only: Reports errors without modifying files
+        # --diff: Shows the diff of what would change
+        args: ["--check-only", "--diff"]
+
+  # === Formatting (Check Only) ===
+  - repo: https://github.com/psf/black
+    rev: 24.4.2 # Use a recent, specific version
+    hooks:
+      - id: black
+        name: black (check only)
+        args: ["--check", "--diff"]
+        # Specify Python version
+        language_version: python3.10
+
+  # === Linting ===
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0 # Use a recent, specific version
+    hooks:
+      - id: flake8
+        args: ["--count", "--show-source", "--statistics"]
+
+  # === General Pre-commit Hooks for Good Practice ===
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0 # Use a recent, specific version
+    hooks:
+      - id: trailing-whitespace     # Checks for trailing whitespace (fixes by default)
+      - id: end-of-file-fixer       # Ensures files end with one newline (fixes by default)
+      - id: check-yaml              # Checks YAML syntax
+      - id: check-toml              # Checks TOML syntax (good for pyproject.toml)
+      - id: check-added-large-files # Prevents committing large files
+      - id: check-merge-conflict    # Checks for leftover merge conflict markers
