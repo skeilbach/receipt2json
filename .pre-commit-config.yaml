@@ -1,5 +1,5 @@
 repos:
-  # === Import Sorting (Check Only) ===
+  # === Import Sorting (Auto-fix Mode) ===
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2 # Use a recent, specific version
     hooks:
@@ -7,9 +7,9 @@ repos:
         name: isort (check only)
         # --check-only: Reports errors without modifying files
         # --diff: Shows the diff of what would change
-        args: ["--check-only", "--diff"]
+        args: []
 
-  # === Formatting (Check Only) ===
+  # === Formatting (Auto-fix Mode) ===
   - repo: https://github.com/psf/black
     rev: 24.4.2 # Use a recent, specific version
     hooks:
@@ -19,7 +19,7 @@ repos:
         # Specify Python version
         language_version: python3.10
 
-  # === Linting ===
+  # === Linting (Check Only)===
   - repo: https://github.com/pycqa/flake8
     rev: 7.0.0 # Use a recent, specific version
     hooks:

@@ -18,13 +18,17 @@ dependencies = [
     "tqdm",
     "imutils",
     "numpy==1.26.4",
-    "progressbar"  
+    "progressbar",
+    "pre-commit",
     ]
 
 [project.optional-dependencies]
 format = [
-    "black>=23.0,<25.0",    
+    "black>=23.0,<25.0",
     "flake8>=6.0,<8.0",
     "isort>=5.10,<6.0",
-    "uv>=0.1.18",         
+    "uv>=0.1.18",
 ]
+
+[tool.flake8]
+ignore = ["E501"]
