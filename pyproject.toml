@@ -23,12 +23,15 @@ dependencies = [
     ]
 
 [project.optional-dependencies]
-format = [
-    "black>=23.0,<25.0",
-    "flake8>=6.0,<8.0",
-    "isort>=5.10,<6.0",
+dev = [
+    "ruff>=0.9.5",
     "uv>=0.1.18",
-]
+    ]
 
-[tool.flake8]
-ignore = ["E501"]
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+ignore = ["C408", "C901", "E501", "E722", "E741"]
+# Removed deprecated `ignore-init-module-imports`.
+select = ["C", "D", "E", "F", "I", "UP", "W"]
