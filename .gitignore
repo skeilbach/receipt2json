@@ -5,10 +5,12 @@
 datasets/
 runs/
 custom_data/
-**/*.egg-info/ 
+**/*.egg-info/
 
-# Ignore jupyter checkpoints
+# Ignore jupyter checkpoints and notebook for testing
 **/*.ipynb_checkpoints/
+**/*.ipynb
+*.ipynb
 
 # Ignore file containing api keys
 .env
